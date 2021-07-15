@@ -4,12 +4,15 @@ local lg = love.graphics
 local lw = love.window
 local lp = love.physics
 
+--chunk stuff
+lg.setDefaultFilter("nearest","nearest")
 local chunkSize=100
-local chunks = {}--2d array of 2d arrays. the last bit is a number
+local chunks = {}--2d array of textures
+local chunkImages = {}
 local chunkCanvas = lg.newCanvas(chunkSize*5,chunkSize*5)
-local chunkShader = lg.newShader("chunkShader.glsl")
 local chunkEdges = {}
-require "body"
+local chunkShader = lg.newShader "chunkShader.glsl"
+
 --camera stuff
 local screenWidth,screenHeight = lw.getMode()
 local cameraX,cameraY = 0,0
@@ -19,26 +22,27 @@ local cameraTransform = love.math.newTransform()
 --ui stuff
 local ui = nuklear.newUI()
 local combo = {value=1,items={"Dig","Generate"}}
-local digColor = '#FFFFFFFF'
-
+local brushSize = 20
 
 --generate the chunks
-lg.setDefaultFilter("nearest","nearest")
+local blankCanvas = lg.newCanvas(chunkSize,chunkSize,{format="r8"})
+blankCanvas:renderTo(function()
+	lg.clear(0,0,0)
+end)
 for x=1,5 do
 	chunks[x] = {}
+	chunkImages[x] = {}
 	for y=1,5 do
-		chunks[x][y] = {}
-		for pixX=1,chunkSize do
-			chunks[x][y][pixX] = {}
-			for pixY=1,chunkSize do
-				--initialize all chunks to black
-				chunks[x][y][pixX][pixY] = 0
-			end
-		end
+		--create new imagedata
+		chunks[x][y] = blankCanvas:newImageData()
+		chunkImages[x][y] = lg.newImage(chunks[x][y])
+		lg.setCanvas(chunkCanvas)
+		lg.setShader(chunkShader)
+		lg.draw(chunkImages[x][y],(x-1)*chunkSize,(y-1)*chunkSize)
+		lg.setShader()
+		lg.setCanvas()
 	end
 end
-
-
 local function vec2(x,y)
 	return setmetatable({x=x,y=y},{__add=function(lh,rh) return vec2(lh.x+rh.x,lh.y+rh.y) end})
 end
@@ -50,7 +54,7 @@ local function circleDist(pointPos,circlePos,radius)
 end
 
 
---uses cameraX,cameraY, and scale
+--uses cameraX,cameraY, and scale Attempt to set out-of-range pixel!
 function GetCanvasPos(k,q,mult)
 	mult = mult or 1
 	return ((k-1)*chunkSize)*mult,((q-1)*chunkSize)*mult
@@ -59,62 +63,38 @@ function love.mousemoved(x,y,dx,dy,istouch)
 	if not ui:mousemoved(x, y, dx, dy, istouch) then
 	if love.mouse.isDown(1) then
 		if combo.items[combo.value]=="Dig" then
-		--left mouse button is pressed
-		--local past = love.timer.getTime()
+
+		lg.setCanvas(chunkCanvas)
+		lg.setShader(chunkShader)
+		lg.origin()
+		--mouse/coords
 		local scrX,scrY = love.mouse.getPosition()
 		local x,y = cameraTransform:inverseTransformPoint(scrX,scrY)
-
-		local Parse = function(r,g,b,a)
-			return r/255,g/255,b/255,a/255
-		end
+		x,y = math.floor(x),math.floor(y)
 		--iterate through chunks
 		--translates screen space
 		for k,v in pairs(chunks) do
 			for q,w in pairs(v) do
 				--w is the 'image'
-				local radius = 20
+				local radius = brushSize
 				--might be slow
-				for pixX=1,chunkSize do
-					for pixY=1,chunkSize do
+				for pixX=math.max(1,(x-(k-1)*chunkSize)-radius),math.min(chunkSize,x-(k-1)*chunkSize+radius) do
+					for pixY=math.max(1,y-(q-1)*chunkSize-radius),math.min(chunkSize,y-(q-1)*chunkSize+radius) do
 						--iterate throught the pixels in the image
-						local dist = circleDist(vec2(pixX,pixY)+vec2(circleDist),vec2(x,y),radius)
+						local dist = circleDist(vec2(pixX,pixY)+vec2((k-1)*chunkSize,(q-1)*chunkSize),vec2(x,y),radius)
 						if dist <= 0 then
 							--this pixel is in the circle
-							w[pixX][pixY] = 1
+								w:setPixel(pixX-1,pixY-1,1,0,0)--the Green and Blue components are thrown out because this is a r8 image
 						end
 					end
 				end
-
-				--lg.translate(GetCanvasPos(k,q,-1))
-				--lg.setColor(Parse(nuklear.colorParseRGBA(digColor)))
-				--lg.circle("fill",x,y,radius)
-
-				--try 'circling'
-				--for pixX=math.max(0,x-radius-1),math.min(x+radius-1,99) do
-				--	for pixY=math.max(0,y-radius-1),math.min(y+radius-1,99) do
-				--		--go through the pixels
-				--		--local r,g,b = chunkData:getPixel(pixX,pixY)
-				--		local dist = circleDist(vec2(pixX,pixY),vec2(x,y),radius) 
-				--		if dist < 1 or dist > -1 then
-				--			--this pixel is close enough
-				--			--print(pixX,type(chunkData[pixX]))
-				--			chunkData[k][q]:setPixel(pixX,pixY,.5,.5,0,1)	
-				--		end
-				--	end
-				--end
-
-				--lg.setColor(1,1,1,1)
-				--lg.origin()
+				chunkImages[k][q]:release()
+				chunkImages[k][q] = lg.newImage(w)
+				lg.draw(chunkImages[k][q],(k-1)*chunkSize,(q-1)*chunkSize)
 			end
 		end
-		lg.setCanvas(chunkCanvas)
-		lg.setShader(chunkShader)
-		chunkShader:send(chunks)
-			lg.rectangle("fill",0,0,chunkSize*5,chunkSize*5)
 		lg.setShader()
 		lg.setCanvas()
-		--lg.setCanvas()
-		--print(love.timer.getTime()-past)
 		elseif combo.items[combo.value]=="Generate" then
 			--if the Generate tool is selected, then we can paint chunks into existence.
 			--Get the real-space position of the cursor,
@@ -155,8 +135,8 @@ function love.update(dt)
 		ui:combobox(combo,combo.items)
 		if combo.items[combo.value] == "Dig" then
 			ui:layoutRow("dynamic",60,2)
-			ui:label "Dig 'Color'"
-			digColor = ui:colorPicker(digColor)
+			ui:label "Brush Size"
+			brushSize = ui:slider(1,brushSize,100,1)
 		end
 		--ui:layoutRow('dynamic', 30, 1)
 		--ui:label('Hello, world!')
