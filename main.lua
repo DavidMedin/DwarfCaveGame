@@ -3,6 +3,7 @@ love=love
 local lg = love.graphics
 local lw = love.window
 local lp = love.physics
+local lf = love.font
 
 --chunk stuff
 lg.setDefaultFilter("nearest","nearest")
@@ -23,11 +24,28 @@ local cameraTransform = love.math.newTransform()
 local ui = nuklear.newUI()
 local combo = {value=1,items={"Dig","Generate"}}
 local brushSize = 20
+local fontRaster = lf.newTrueTypeRasterizer("mini-wakuwaku.ttf",20)
+lg.setNewFont(fontRaster)
+
+
+--material stuff
+local selectedMaterial = 2
+local materials = {{color={1,1,1},name="Air"},{material=lg.newImage "gold.png",name="Gold"},{color={0,0,0},name="Stone"}}
+for k,v in pairs(materials) do
+	if v.color then
+		local newCanvas = lg.newCanvas(40,40)
+		lg.setCanvas(newCanvas)
+		lg.clear(v.color)
+		lg.setCanvas()
+		v.material=newCanvas
+	end
+end
+
 
 --generate the chunks
 local blankCanvas = lg.newCanvas(chunkSize,chunkSize,{format="r8"})
 blankCanvas:renderTo(function()
-	lg.clear(0,0,0)
+	lg.clear(1/255,0,0)
 end)
 for x=1,5 do
 	chunks[x] = {}
@@ -84,7 +102,7 @@ function love.mousemoved(x,y,dx,dy,istouch)
 						local dist = circleDist(vec2(pixX,pixY)+vec2((k-1)*chunkSize,(q-1)*chunkSize),vec2(x,y),radius)
 						if dist <= 0 then
 							--this pixel is in the circle
-								w:setPixel(pixX-1,pixY-1,1,0,0)--the Green and Blue components are thrown out because this is a r8 image
+							w:setPixel(pixX-1,pixY-1,({love.math.colorFromBytes(selectedMaterial,0,0,0)})[1],0,0)--the Green and Blue components are thrown out because this is a r8 image
 						end
 					end
 				end
@@ -101,7 +119,6 @@ function love.mousemoved(x,y,dx,dy,istouch)
 			--then find the chunk it is in.
 			local x,y = cameraTransform:inverseTransformPoint(love.mouse.getPosition())
 			--find the chunk
-			--lg.rectangle("fill",x%100,y%100,100,100)
 			local ix,iy = math.floor(x/chunkSize)+1,math.floor(y/chunkSize)+1
 			if chunks[ix] == nil or chunks[ix][iy] == nil then
 				--lets write chunk
@@ -126,34 +143,36 @@ function love.wheelmoved(x,y)
 		scale = scale + y*.1
 	end
 end
+
 function love.update(dt)
 	ui:frameBegin()
-	if ui:windowBegin('tools', 100, 100, 200, 160,
+	if ui:windowBegin('tools', 550, 100, 220, 170,
 			'border', 'title', 'movable','scalable') then
-		ui:layoutRow('dynamic',30,2)
+		ui:layoutRow('static',30,100,2)
 		ui:label "Draw Tools:"
 		ui:combobox(combo,combo.items)
+		ui:layoutRow("dynamic",30,1)
 		if combo.items[combo.value] == "Dig" then
+			if ui:comboboxBegin "Brush Material" then
+				for k,v in pairs(materials) do
+					ui:layoutRow("dynamic",60,1)
+					if ui:comboboxItem(v.name,v.material) then--v.material can be nil
+						--this is the material that is clicked
+						selectedMaterial = k
+						print("selected "..selectedMaterial)
+					end
+				end
+
+				--ui:layoutRow("dynamic",60,2)
+				--ui:label "Gold"
+				--ui:image(materials[2].material)
+				ui:comboboxEnd()
+			end
+
 			ui:layoutRow("dynamic",60,2)
 			ui:label "Brush Size"
 			brushSize = ui:slider(1,brushSize,100,1)
 		end
-		--ui:layoutRow('dynamic', 30, 1)
-		--ui:label('Hello, world!')
-		--ui:layoutRow('dynamic', 30, 2)
-		--ui:label('Hello, world!')
-		--ui:label('Combo box:')
-		--if ui:combobox(combo, combo.items) then
-		--	print('Combo!', combo.items[combo.value])
-		--end
-		--ui:layoutRow('dynamic', 30, 3)
-		--ui:label('Buttons:')
-		--if ui:button('Sample') then
-		--	print('Sample!')
-		--end
-		--if ui:button('Button') then
-		--	print('Button!')
-		--end
 	end
 	ui:windowEnd()
 	ui:frameEnd()
@@ -170,18 +189,15 @@ function love.draw()
 	cameraTransform:translate(-(screenWidth/2)+cameraX,-(screenHeight/2)+cameraY)
 
 	lg.applyTransform(cameraTransform)
-	--for k,v in pairs(chunks) do
-	--	for q,w in pairs(v) do
-	--		--lg.draw(w,GetCanvasPos(k,q))
-	--	end
-	--end
 	lg.draw(chunkCanvas)	
 	lg.setColor(1,0,0)
 	lg.setPointSize(10)
 	lg.points(0,0)
 	lg.setColor(1,1,1)
 	ui:draw()
-	
+
+	lg.origin()
+	lg.print("FPS: "..love.timer.getFPS(),0,0)	
 
 end
 
