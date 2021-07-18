@@ -11,8 +11,8 @@ local chunkSize=100
 local chunks = {}--2d array of textures
 local chunkImages = {}
 local chunkCanvas = lg.newCanvas(chunkSize*5,chunkSize*5)
-local chunkEdges = {}
-local chunkShader = lg.newShader "chunkShader.glsl"
+local chunkEdges = {}--unused (will use for physics [I think])
+local chunkShader = lg.newShader "chunkShader.glsl"--program on the GPU that describes how to render the chunks
 
 --camera stuff
 local screenWidth,screenHeight = lw.getMode()
@@ -32,6 +32,7 @@ lg.setNewFont(fontRaster)
 local selectedMaterial = 2
 local materials = {{color={1,1,1},name="Air"},{material=lg.newImage "gold.png",name="Gold"},{color={0,0,0},name="Stone"}}
 for k,v in pairs(materials) do
+	--generate images for materials like 'air' and 'stone' which don't have images (blank image filled with its color)
 	if v.color then
 		local newCanvas = lg.newCanvas(40,40)
 		lg.setCanvas(newCanvas)
@@ -155,6 +156,7 @@ function love.update(dt)
 		ui:layoutRow("dynamic",30,1)
 		if combo.items[combo.value] == "Dig" then
 			if ui:comboboxBegin "Brush Material" then
+				--go through the tables in 'materials' and create material options
 				for k,v in pairs(materials) do
 					ui:layoutRow("dynamic",60,1)
 					if ui:comboboxItem(v.name,v.material) then--v.material can be nil
@@ -164,9 +166,6 @@ function love.update(dt)
 					end
 				end
 
-				--ui:layoutRow("dynamic",60,2)
-				--ui:label "Gold"
-				--ui:image(materials[2].material)
 				ui:comboboxEnd()
 			end
 
