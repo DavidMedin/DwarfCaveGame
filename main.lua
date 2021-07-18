@@ -11,8 +11,15 @@ local chunkSize=100
 local chunks = {}--2d array of textures
 local chunkImages = {}
 local chunkCanvas = lg.newCanvas(chunkSize*5,chunkSize*5)
+local loadOrgy = {0,0}--Origin -> Orgy don't @ me
+local loadX,loadY = 5,4 --how many chunks to load from the loadOrgy
 local chunkEdges = {}--unused (will use for physics [I think])
 local chunkShader = lg.newShader "chunkShader.glsl"--program on the GPU that describes how to render the chunks
+
+function Snap(vec)
+	--plus one because the chunk at (1,1) would be (0,0) after chunk, where it should still be (1,1)
+	return {math.floor(vec[1]/chunkSize)+1,math.floor(vec[2]/chunkSize)+1}
+end
 
 --camera stuff
 local screenWidth,screenHeight = lw.getMode()
@@ -48,10 +55,10 @@ local blankCanvas = lg.newCanvas(chunkSize,chunkSize,{format="r8"})
 blankCanvas:renderTo(function()
 	lg.clear(3/255,0,0)
 end)
-for x=1,5 do
+for x=1,loadX do
 	chunks[x] = {}
 	chunkImages[x] = {}
-	for y=1,5 do
+	for y=1,loadY do
 		--create new imagedata
 		chunks[x][y] = blankCanvas:newImageData()
 		chunkImages[x][y] = lg.newImage(chunks[x][y])
@@ -62,7 +69,41 @@ for x=1,5 do
 		lg.setCanvas()
 	end
 end
+
+function loadChunks(dx,dy)
+			local old = Snap(loadOrgy)
+			loadOrgy = {loadOrgy[1]+dx,loadOrgy[2]+dy}
+			local new = Snap(loadOrgy)
+			local difX = old[1]-new[1]
+			if difX ~= 0 then
+			for x=difX>0 and math.max(old[1],old[1]+loadX-difX) or old[1], difX>0 and old[1]+loadX-1 or math.min(old[1]+loadX-1,new[1]-1) do
+				for y=old[2],old[2]+loadY-1 do
+					--remove chunks that are outside region
+					errorPlace = {x,y}
+					chunks[x][y]:release()
+					chunks[x][y] = nil
+					chunkImages[x][y]:release()
+					chunkImages[x][y] = nil
+				end
+			end
+			--add chunks
+			for x=new[1], difX>0 and new[1]+loadX-1 or old[1]+loadX-difX-1 do
+				for y=old[2],old[2]+loadY-1 do
+					--print("adding",x,y)
+					if chunks[x] == nil then chunks[x] = {};chunkImages[x] = {} end
+					chunks[x][y] = blankCanvas:newImageData()
+					chunkImages[x][y] = lg.newImage(chunks[x][y])
+					lg.setCanvas(chunkCanvas)
+					lg.setShader(chunkShader)
+					lg.draw(chunkImages[x][y],(x-1)*chunkSize,(y-1)*chunkSize)
+					lg.setShader()
+					lg.setCanvas()
+				end
+			end
+			end
+		end
 local function vec2(x,y)
+
 	return setmetatable({x=x,y=y},{__add=function(lh,rh) return vec2(lh.x+rh.x,lh.y+rh.y) end})
 end
 local function distance(pos1,pos2)
@@ -80,6 +121,7 @@ function GetCanvasPos(k,q,mult)
 end
 function love.mousemoved(x,y,dx,dy,istouch)
 	if not ui:mousemoved(x, y, dx, dy, istouch) then
+	if errored == true then return end
 	if love.mouse.isDown(1) then
 		if combo.items[combo.value]=="Dig" then
 
@@ -116,27 +158,13 @@ function love.mousemoved(x,y,dx,dy,istouch)
 		lg.setShader()
 		lg.setCanvas()
 		elseif combo.items[combo.value]=="Generate" then
-			--if the Generate tool is selected, then we can paint chunks into existence.
-			--Get the real-space position of the cursor,
-			--then find the chunk it is in.
-			local x,y = cameraTransform:inverseTransformPoint(love.mouse.getPosition())
-			--find the chunk
-			local ix,iy = math.floor(x/chunkSize)+1,math.floor(y/chunkSize)+1
-			if chunks[ix] == nil or chunks[ix][iy] == nil then
-				--lets write chunk
-				if chunks[ix] == nil then chunks[ix] = {} end
-				chunks[ix][iy] = lg.newCanvas(chunkSize,chunkSize)
-				lg.setCanvas(chunks[ix][iy])
-				lg.clear(0,0,0)
-				lg.setCanvas()
-			end
-			
+			loadChunks(dx/scale,0)
 		end
 	elseif love.mouse.isDown(3) then
 		--middle mouse is pressed
 		--pan the camera
-		cameraX = cameraX + dx
-		cameraY = cameraY + dy
+		cameraX = cameraX + dx/scale
+		cameraY = cameraY + dy/scale
 	end
 	end
 end
@@ -148,7 +176,7 @@ end
 
 function love.update(dt)
 	ui:frameBegin()
-	if ui:windowBegin('tools', 550, 100, 220, 170,
+	if ui:windowBegin('tools', 550, 100, 220, 200,
 			'border', 'title', 'movable','scalable') then
 		ui:layoutRow('static',30,100,2)
 		ui:label "Draw Tools:"
@@ -169,7 +197,7 @@ function love.update(dt)
 				ui:comboboxEnd()
 			end
 
-			ui:layoutRow("dynamic",60,2)
+			ui:layoutRow("dynamic",30,2)
 			ui:label "Brush Size"
 			brushSize = ui:slider(1,brushSize,100,1)
 		end
@@ -177,6 +205,7 @@ function love.update(dt)
 	ui:windowEnd()
 	ui:frameEnd()
 end
+local old = {loadOrgy[1],loadOrgy[2]}
 function love.draw()
 	lg.clear(.1,.1,.1)
 	lg.setLineWidth(6)
@@ -189,11 +218,28 @@ function love.draw()
 	cameraTransform:translate(-(screenWidth/2)+cameraX,-(screenHeight/2)+cameraY)
 
 	lg.applyTransform(cameraTransform)
-	lg.draw(chunkCanvas)	
+	lg.draw(chunkCanvas)
+	for x,q in pairs(chunks) do
+		for y,v in pairs(q) do
+			lg.rectangle("line",(x-1)*chunkSize,(y-1)*chunkSize,chunkSize,chunkSize)
+		end
+	end
 	lg.setColor(1,0,0)
+	if errorPlace and errored then lg.rectangle("line",(errorPlace[1]-1)*chunkSize,(errorPlace[2]-1)*chunkSize,chunkSize,chunkSize)
+		debug.debug() end
 	lg.setPointSize(10)
 	lg.points(0,0)
 	lg.setColor(1,1,1)
+
+	--draw the loadOrgy box
+	lg.setColor(1,0,0)
+	lg.rectangle("line",loadOrgy[1],loadOrgy[2],loadX*100,loadY*100)
+	lg.setColor(0,0,1)
+	lg.rectangle("line",old[1],old[2],loadX*100,loadY*100)
+	old = {loadOrgy[1],loadOrgy[2]}
+	lg.setColor(0,0,1)
+	lg.setColor(1,1,1)
+
 	ui:draw()
 
 	lg.origin()
