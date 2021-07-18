@@ -45,7 +45,7 @@ end
 --generate the chunks
 local blankCanvas = lg.newCanvas(chunkSize,chunkSize,{format="r8"})
 blankCanvas:renderTo(function()
-	lg.clear(1/255,0,0)
+	lg.clear(3/255,0,0)
 end)
 for x=1,5 do
 	chunks[x] = {}
@@ -84,6 +84,7 @@ function love.mousemoved(x,y,dx,dy,istouch)
 
 		lg.setCanvas(chunkCanvas)
 		lg.setShader(chunkShader)
+		chunkShader:send('gold',materials[2].material)
 		lg.origin()
 		--mouse/coords
 		local scrX,scrY = love.mouse.getPosition()
@@ -102,7 +103,7 @@ function love.mousemoved(x,y,dx,dy,istouch)
 						local dist = circleDist(vec2(pixX,pixY)+vec2((k-1)*chunkSize,(q-1)*chunkSize),vec2(x,y),radius)
 						if dist <= 0 then
 							--this pixel is in the circle
-							w:setPixel(pixX-1,pixY-1,({love.math.colorFromBytes(selectedMaterial,0,0,0)})[1],0,0)--the Green and Blue components are thrown out because this is a r8 image
+							w:setPixel(pixX-1,pixY-1,selectedMaterial/255,0,0)--the Green and Blue components are thrown out because this is a r8 image
 						end
 					end
 				end
