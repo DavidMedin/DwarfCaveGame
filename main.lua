@@ -8,11 +8,12 @@ local lf = love.font
 --chunk stuff
 lg.setDefaultFilter("nearest","nearest")
 local chunkSize=100
-local chunks = {}--2d array of textures
+chunks = {}--2d array of textures
 local chunkImages = {}
-local chunkCanvas = lg.newCanvas(chunkSize*5,chunkSize*5)
-local loadOrgy = {0,0}--Origin -> Orgy don't @ me
 local loadX,loadY = 5,4 --how many chunks to load from the loadOrgy
+local chunkCanvas = lg.newCanvas(chunkSize*loadX,chunkSize*loadY)
+local chunkCanvasPos= {0,0}
+local loadOrgy = {0,0}--Origin -> Orgy don't @ me
 local chunkEdges = {}--unused (will use for physics [I think])
 local chunkShader = lg.newShader "chunkShader.glsl"--program on the GPU that describes how to render the chunks
 
@@ -74,6 +75,7 @@ end
 function loadChunks(dx,dy)
 	local trikl = {loadOrgy[1]+dx,loadOrgy[2]+dy}--sets the x, then on the second pass sets the y
 	local loads = {loadX,loadY}
+	local cumDiff = 0--just used to see if anything moved tiles
 	for i=1,2 do
 		local old = Snap(loadOrgy)
 		loadOrgy[i] = trikl[i]
@@ -84,6 +86,7 @@ function loadChunks(dx,dy)
 		local loadBasis = loads[i]
 		local loadCompliment = loads[(i)%2+1]
 		local basisDif = oldBasis-newBasis
+		cumDiff = cumDiff + basisDif
 		if basisDif ~= 0 then
 			--removes chunks
 			for x=basisDif>0 and math.max(oldBasis,oldBasis+loadBasis-basisDif) or oldBasis, basisDif>0 and oldBasis+loadBasis-1 or math.min(oldBasis+loadBasis-1,newBasis-1) do
@@ -97,21 +100,31 @@ function loadChunks(dx,dy)
 				end
 			end
 			--add chunks
-			for x=newBasis, basisDif>0 and newBasis+loadBasis-1 or oldBasis+loadBasis-basisDif-1 do
+			for x=basisDif>0 and newBasis or math.max(newBasis,oldBasis+loadBasis), basisDif>0 and math.min(oldBasis-1,newBasis+loadBasis-1) or oldBasis+loadBasis-basisDif-1 do
 				for y=oldCompliment,oldCompliment+loadCompliment-1 do
 					local correctedX = i==1 and x or y
 					local correctedY = i==1 and y or x
 					if chunks[correctedX] == nil then chunks[correctedX] = {};chunkImages[correctedX] = {} end
 					chunks[correctedX][correctedY] = blankCanvas:newImageData()
 					chunkImages[correctedX][correctedY] = lg.newImage(chunks[correctedX][correctedY])
-					lg.setCanvas(chunkCanvas)
-					lg.setShader(chunkShader)
-					lg.draw(chunkImages[correctedX][correctedY],(correctedX-1)*chunkSize,(correctedY-1)*chunkSize)
-					lg.setShader()
-					lg.setCanvas()
 				end
 			end
 		end
+	end
+	--update the chunkCanvas (if needed!)
+	if cumDiff ~= 0 then
+		local new = Snap(loadOrgy)
+		chunkCanvasPos = {(new[1]-1)*chunkSize,(new[2]-1)*chunkSize}
+		lg.setCanvas(chunkCanvas)
+		lg.setShader(chunkShader)
+		chunkShader:send('gold',materials[2].material)
+		for x,q in pairs(chunkImages) do
+			for y,w in pairs(q) do
+				lg.draw(chunkImages[x][y],(x-1)*chunkSize-chunkCanvasPos[1],(y-1)*chunkSize-chunkCanvasPos[2])
+			end
+		end
+		lg.setShader()
+		lg.setCanvas()
 	end
 end
 
@@ -132,6 +145,8 @@ function GetCanvasPos(k,q,mult)
 	mult = mult or 1
 	return ((k-1)*chunkSize)*mult,((q-1)*chunkSize)*mult
 end
+
+
 function love.mousemoved(x,y,dx,dy,istouch)
 	if not ui:mousemoved(x, y, dx, dy, istouch) then
 	if love.mouse.isDown(1) then
@@ -139,6 +154,7 @@ function love.mousemoved(x,y,dx,dy,istouch)
 
 		lg.setCanvas(chunkCanvas)
 		lg.setShader(chunkShader)
+		lg.setColor(1,1,1)
 		chunkShader:send('gold',materials[2].material)
 		lg.origin()
 		--mouse/coords
@@ -164,7 +180,7 @@ function love.mousemoved(x,y,dx,dy,istouch)
 				end
 				chunkImages[k][q]:release()
 				chunkImages[k][q] = lg.newImage(w)
-				lg.draw(chunkImages[k][q],(k-1)*chunkSize,(q-1)*chunkSize)
+				lg.draw(chunkImages[k][q],(k-1)*chunkSize-chunkCanvasPos[1],(q-1)*chunkSize-chunkCanvasPos[2])
 			end
 		end
 		lg.setShader()
@@ -212,6 +228,7 @@ function love.update(dt)
 			ui:layoutRow("dynamic",30,2)
 			ui:label "Brush Size"
 			brushSize = ui:slider(1,brushSize,100,1)
+			if ui:button "Debug" then debug.debug() end
 		end
 	end
 	ui:windowEnd()
@@ -221,6 +238,7 @@ local old = {loadOrgy[1],loadOrgy[2]}
 function love.draw()
 	lg.clear(.1,.1,.1)
 	lg.setLineWidth(6)
+	lg.setColor(1,1,1)
 
 	--translate (in reverse because dunmb)
 	--translates and scales everything that will be drawn from screen space to camera space
@@ -230,7 +248,7 @@ function love.draw()
 	cameraTransform:translate(-(screenWidth/2)+cameraX,-(screenHeight/2)+cameraY)
 
 	lg.applyTransform(cameraTransform)
-	lg.draw(chunkCanvas)
+	lg.draw(chunkCanvas,chunkCanvasPos[1],chunkCanvasPos[2])
 	for x,q in pairs(chunks) do
 		for y,v in pairs(q) do
 			lg.rectangle("line",(x-1)*chunkSize,(y-1)*chunkSize,chunkSize,chunkSize)
@@ -244,12 +262,10 @@ function love.draw()
 	--draw the loadOrgy box
 	lg.setColor(1,0,0)
 	lg.rectangle("line",loadOrgy[1],loadOrgy[2],loadX*100,loadY*100)
-	lg.setColor(0,0,1)
-	lg.setColor(0,0,1)
 	lg.setColor(1,1,1)
 
 	ui:draw()
-
+	
 	lg.origin()
 	lg.print("FPS: "..love.timer.getFPS(),0,0)	
 
