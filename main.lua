@@ -70,38 +70,51 @@ for x=1,loadX do
 	end
 end
 
+--Convolution city Woot Woot!
 function loadChunks(dx,dy)
-			local old = Snap(loadOrgy)
-			loadOrgy = {loadOrgy[1]+dx,loadOrgy[2]+dy}
-			local new = Snap(loadOrgy)
-			local difX = old[1]-new[1]
-			if difX ~= 0 then
-			for x=difX>0 and math.max(old[1],old[1]+loadX-difX) or old[1], difX>0 and old[1]+loadX-1 or math.min(old[1]+loadX-1,new[1]-1) do
-				for y=old[2],old[2]+loadY-1 do
-					--remove chunks that are outside region
-					errorPlace = {x,y}
-					chunks[x][y]:release()
-					chunks[x][y] = nil
-					chunkImages[x][y]:release()
-					chunkImages[x][y] = nil
+	local trikl = {loadOrgy[1]+dx,loadOrgy[2]+dy}--sets the x, then on the second pass sets the y
+	local loads = {loadX,loadY}
+	for i=1,2 do
+		local old = Snap(loadOrgy)
+		loadOrgy[i] = trikl[i]
+		local new = Snap(loadOrgy)
+		local oldBasis=old[i]
+		local oldCompliment = old[((i)%2)+1]
+		local newBasis=new[i]
+		local loadBasis = loads[i]
+		local loadCompliment = loads[(i)%2+1]
+		local basisDif = oldBasis-newBasis
+		if basisDif ~= 0 then
+			--removes chunks
+			for x=basisDif>0 and math.max(oldBasis,oldBasis+loadBasis-basisDif) or oldBasis, basisDif>0 and oldBasis+loadBasis-1 or math.min(oldBasis+loadBasis-1,newBasis-1) do
+				for y=oldCompliment,oldCompliment+loadCompliment-1  do
+					local correctedY = i==1 and y or x--the upper for loop is changing x with y, so we need to index in the same way
+					local correctedX = i==1 and x or y
+					chunks[correctedX][correctedY]:release()
+					chunks[correctedX][correctedY] = nil
+					chunkImages[correctedX][correctedY]:release()
+					chunkImages[correctedX][correctedY] = nil
 				end
 			end
 			--add chunks
-			for x=new[1], difX>0 and new[1]+loadX-1 or old[1]+loadX-difX-1 do
-				for y=old[2],old[2]+loadY-1 do
-					--print("adding",x,y)
-					if chunks[x] == nil then chunks[x] = {};chunkImages[x] = {} end
-					chunks[x][y] = blankCanvas:newImageData()
-					chunkImages[x][y] = lg.newImage(chunks[x][y])
+			for x=newBasis, basisDif>0 and newBasis+loadBasis-1 or oldBasis+loadBasis-basisDif-1 do
+				for y=oldCompliment,oldCompliment+loadCompliment-1 do
+					local correctedX = i==1 and x or y
+					local correctedY = i==1 and y or x
+					if chunks[correctedX] == nil then chunks[correctedX] = {};chunkImages[correctedX] = {} end
+					chunks[correctedX][correctedY] = blankCanvas:newImageData()
+					chunkImages[correctedX][correctedY] = lg.newImage(chunks[correctedX][correctedY])
 					lg.setCanvas(chunkCanvas)
 					lg.setShader(chunkShader)
-					lg.draw(chunkImages[x][y],(x-1)*chunkSize,(y-1)*chunkSize)
+					lg.draw(chunkImages[correctedX][correctedY],(correctedX-1)*chunkSize,(correctedY-1)*chunkSize)
 					lg.setShader()
 					lg.setCanvas()
 				end
 			end
-			end
 		end
+	end
+end
+
 local function vec2(x,y)
 
 	return setmetatable({x=x,y=y},{__add=function(lh,rh) return vec2(lh.x+rh.x,lh.y+rh.y) end})
@@ -121,7 +134,6 @@ function GetCanvasPos(k,q,mult)
 end
 function love.mousemoved(x,y,dx,dy,istouch)
 	if not ui:mousemoved(x, y, dx, dy, istouch) then
-	if errored == true then return end
 	if love.mouse.isDown(1) then
 		if combo.items[combo.value]=="Dig" then
 
@@ -158,7 +170,7 @@ function love.mousemoved(x,y,dx,dy,istouch)
 		lg.setShader()
 		lg.setCanvas()
 		elseif combo.items[combo.value]=="Generate" then
-			loadChunks(dx/scale,0)
+			loadChunks(dx/scale,dy/scale)
 		end
 	elseif love.mouse.isDown(3) then
 		--middle mouse is pressed
@@ -225,8 +237,6 @@ function love.draw()
 		end
 	end
 	lg.setColor(1,0,0)
-	if errorPlace and errored then lg.rectangle("line",(errorPlace[1]-1)*chunkSize,(errorPlace[2]-1)*chunkSize,chunkSize,chunkSize)
-		debug.debug() end
 	lg.setPointSize(10)
 	lg.points(0,0)
 	lg.setColor(1,1,1)
@@ -235,8 +245,6 @@ function love.draw()
 	lg.setColor(1,0,0)
 	lg.rectangle("line",loadOrgy[1],loadOrgy[2],loadX*100,loadY*100)
 	lg.setColor(0,0,1)
-	lg.rectangle("line",old[1],old[2],loadX*100,loadY*100)
-	old = {loadOrgy[1],loadOrgy[2]}
 	lg.setColor(0,0,1)
 	lg.setColor(1,1,1)
 
