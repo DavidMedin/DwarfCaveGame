@@ -65,6 +65,8 @@ for x=1,loadX do
 		chunkImages[x][y] = lg.newImage(chunks[x][y])
 		lg.setCanvas(chunkCanvas)
 		lg.setShader(chunkShader)
+		chunkShader:send("gold",materials[2].material)
+		chunkShader:send("offset",chunkCanvasPos)
 		lg.draw(chunkImages[x][y],(x-1)*chunkSize,(y-1)*chunkSize)
 		lg.setShader()
 		lg.setCanvas()
@@ -118,6 +120,7 @@ function loadChunks(dx,dy)
 		lg.setCanvas(chunkCanvas)
 		lg.setShader(chunkShader)
 		chunkShader:send('gold',materials[2].material)
+		chunkShader:send("offset",chunkCanvasPos)
 		for x,q in pairs(chunkImages) do
 			for y,w in pairs(q) do
 				lg.draw(chunkImages[x][y],(x-1)*chunkSize-chunkCanvasPos[1],(y-1)*chunkSize-chunkCanvasPos[2])
@@ -156,6 +159,7 @@ function love.mousemoved(x,y,dx,dy,istouch)
 		lg.setShader(chunkShader)
 		lg.setColor(1,1,1)
 		chunkShader:send('gold',materials[2].material)
+		chunkShader:send("offset",chunkCanvasPos)
 		lg.origin()
 		--mouse/coords
 		local scrX,scrY = love.mouse.getPosition()
@@ -249,11 +253,11 @@ function love.draw()
 
 	lg.applyTransform(cameraTransform)
 	lg.draw(chunkCanvas,chunkCanvasPos[1],chunkCanvasPos[2])
-	for x,q in pairs(chunks) do
-		for y,v in pairs(q) do
-			lg.rectangle("line",(x-1)*chunkSize,(y-1)*chunkSize,chunkSize,chunkSize)
-		end
-	end
+	--for x,q in pairs(chunks) do
+	--	for y,v in pairs(q) do
+	--		lg.rectangle("line",(x-1)*chunkSize,(y-1)*chunkSize,chunkSize,chunkSize)
+	--	end
+	--end
 	lg.setColor(1,0,0)
 	lg.setPointSize(10)
 	lg.points(0,0)
