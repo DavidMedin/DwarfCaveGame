@@ -51,6 +51,11 @@ for k,v in pairs(materials) do
 end
 
 
+--networking stuff
+local socket = require "socket"
+local client = assert(socket.connect("10.149.237.125",20))
+print("connected")
+
 --generate the chunks
 local blankCanvas = lg.newCanvas(chunkSize,chunkSize,{format="r8"})
 blankCanvas:renderTo(function()
@@ -63,6 +68,7 @@ for x=1,loadX do
 		--create new imagedata
 		chunks[x][y] = blankCanvas:newImageData()
 		chunkImages[x][y] = lg.newImage(chunks[x][y])
+		client:send(x..":"..y..":"..chunks[x][y]:getString().."\n")
 		lg.setCanvas(chunkCanvas)
 		lg.setShader(chunkShader)
 		chunkShader:send("gold",materials[2].material)
@@ -72,6 +78,7 @@ for x=1,loadX do
 		lg.setCanvas()
 	end
 end
+
 
 --Convolution city Woot Woot!
 function loadChunks(dx,dy)
@@ -95,6 +102,7 @@ function loadChunks(dx,dy)
 				for y=oldCompliment,oldCompliment+loadCompliment-1  do
 					local correctedY = i==1 and y or x--the upper for loop is changing x with y, so we need to index in the same way
 					local correctedX = i==1 and x or y
+					client:send(correctedX..":"..correctedY..":"..chunks[correctedX][correctedY]:getString().."\n")
 					chunks[correctedX][correctedY]:release()
 					chunks[correctedX][correctedY] = nil
 					chunkImages[correctedX][correctedY]:release()
@@ -107,8 +115,17 @@ function loadChunks(dx,dy)
 					local correctedX = i==1 and x or y
 					local correctedY = i==1 and y or x
 					if chunks[correctedX] == nil then chunks[correctedX] = {};chunkImages[correctedX] = {} end
-					chunks[correctedX][correctedY] = blankCanvas:newImageData()
-					chunkImages[correctedX][correctedY] = lg.newImage(chunks[correctedX][correctedY])
+					client:send(correctedX..":"..correctedY..":".."\n")
+					local data = client:receive()
+					if data == "#" then
+						--we create it
+						chunks[correctedX][correctedY] = blankCanvas:newImageData()
+						chunkImages[correctedX][correctedY] = lg.newImage(chunks[correctedX][correctedY])
+					else
+						--we read it
+						chunks[correctedX][correctedY] = love.image.newImageData(chunkSize,chunkSize,"r8",data:sub(1,10000))
+						chunkImages[correctedX][correctedY] = lg.newImage(chunks[correctedX][correctedY])
+					end
 				end
 			end
 		end
