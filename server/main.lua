@@ -1,4 +1,5 @@
 love=love
+require "../networking"
 local chunks = {}
 local connections = {}
 local socket = require "socket"
@@ -23,10 +24,6 @@ while true do
 		local data,err = v:receive()
 		if err then goto continue end
 		print(data)
-		local first = data:find(":")
-		local firstNum = tonumber(data:sub(0,first-1))
-		local last = data:find(":",first+1)
-		local lastNum = tonumber(data:sub(first+1,last-1))
 		if #data == last then
 			--client requested data
 			if chunks[firstNum] == nil or chunks[firstNum][lastNum] == nil then

@@ -13,14 +13,8 @@ cmds = Enum {
 	"clear",--x,y In chunks
 	"clientLoadRequest",--x,y in chunks
 }
-function send(...)
-	local parts = {...}
-	local str = ""
-	for k,v in pairs(parts) do
-		str = str .. v..":"
-	end
-	client:send(str.."\n")
-end
+
+
 local function vec2(x,y)
 	return setmetatable({x=x,y=y},{__add=function(lh,rh) return vec2(lh.x+rh.x,lh.y+rh.y) end})
 end
