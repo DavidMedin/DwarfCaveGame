@@ -1,5 +1,5 @@
 local nuklear = require "nuklear"
-love=love
+require "shapes"
 local lg = love.graphics
 local lw = love.window
 local lp = love.physics
@@ -62,13 +62,17 @@ blankCanvas:renderTo(function()
 	lg.clear(3/255,0,0)
 end)
 for x=1,loadX do
+	for y=1,loadY do
+		send(cmd.clientLoadRequest,x,y)
+	end
+end
+for x=1,loadX do
 	chunks[x] = {}
 	chunkImages[x] = {}
 	for y=1,loadY do
 		--create new imagedata
-		chunks[x][y] = blankCanvas:newImageData()
+		chunks[x][y] = love.image.newImageData(client:receive())
 		chunkImages[x][y] = lg.newImage(chunks[x][y])
-		client:send(x..":"..y..":"..chunks[x][y]:getString().."\n")
 		lg.setCanvas(chunkCanvas)
 		lg.setShader(chunkShader)
 		chunkShader:send("gold",materials[2].material)
@@ -102,7 +106,7 @@ function loadChunks(dx,dy)
 				for y=oldCompliment,oldCompliment+loadCompliment-1  do
 					local correctedY = i==1 and y or x--the upper for loop is changing x with y, so we need to index in the same way
 					local correctedX = i==1 and x or y
-					client:send(correctedX..":"..correctedY..":"..chunks[correctedX][correctedY]:getString().."\n")
+					--client:send(correctedX..":"..correctedY..":"..chunks[correctedX][correctedY]:getString().."\n")
 					chunks[correctedX][correctedY]:release()
 					chunks[correctedX][correctedY] = nil
 					chunkImages[correctedX][correctedY]:release()
@@ -115,7 +119,9 @@ function loadChunks(dx,dy)
 					local correctedX = i==1 and x or y
 					local correctedY = i==1 and y or x
 					if chunks[correctedX] == nil then chunks[correctedX] = {};chunkImages[correctedX] = {} end
-					client:send(correctedX..":"..correctedY..":".."\n")
+					--client:send(correctedX..":"..correctedY..":".."\n")
+					send(cmd.clientLoadRequest,correctedX,correctedY)
+					print "sent request"
 					local data = client:receive()
 					if data == "#" then
 						--we create it
@@ -148,16 +154,6 @@ function loadChunks(dx,dy)
 	end
 end
 
-local function vec2(x,y)
-
-	return setmetatable({x=x,y=y},{__add=function(lh,rh) return vec2(lh.x+rh.x,lh.y+rh.y) end})
-end
-local function distance(pos1,pos2)
-	return math.sqrt(((pos1.x-pos2.x)^2)+(pos1.y-pos2.y)^2)
-end
-local function circleDist(pointPos,circlePos,radius)
-	return distance(pointPos,circlePos)-radius
-end
 
 
 --uses cameraX,cameraY, and scale Attempt to set out-of-range pixel!
@@ -184,10 +180,11 @@ function love.mousemoved(x,y,dx,dy,istouch)
 		x,y = math.floor(x),math.floor(y)
 		--iterate through chunks
 		--translates screen space
+		local radius = brushSize
+		send(cmd.circle,x,y,radius)
 		for k,v in pairs(chunks) do
 			for q,w in pairs(v) do
 				--w is the 'image'
-				local radius = brushSize
 				--might be slow
 				for pixX=math.max(1,(x-(k-1)*chunkSize)-radius),math.min(chunkSize,x-(k-1)*chunkSize+radius) do
 					for pixY=math.max(1,y-(q-1)*chunkSize-radius),math.min(chunkSize,y-(q-1)*chunkSize+radius) do

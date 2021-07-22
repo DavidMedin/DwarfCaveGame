@@ -1,47 +1,46 @@
 love=love
 local chunks = {}
-
-
+local connections = {}
 local socket = require "socket"
 local server = assert(socket.bind("*",20))
+
+test = love.image.newImageData(100,100,"r8")
+
+server:settimeout(0)
 print "started up"
-local client = server:accept()
-print "found connection"
 while true do
-	local data,err = client:receive()
-	if err then break; end
-	local first = data:find(":")
-	local firstNum = tonumber(data:sub(0,first-1))
-	local last = data:find(":",first+1)
-	local lastNum = tonumber(data:sub(first+1,last-1))
-	if #data == last then
-		--client requested data
-		if chunks[firstNum] == nil or chunks[firstNum][lastNum] == nil then
-			client:send("#\n")
+	local client,err = server:accept()
+	if client == nil and err ~= "timeout" then
+		--do weird error
+		print(err)
+	elseif client ~= nil then
+		table.insert(connections,client)
+		print "found connection"
+	end
+	--try to recieve
+	for k,v in pairs(connections) do
+		v:settimeout(1)
+		local data,err = v:receive()
+		if err then goto continue end
+		print(data)
+		local first = data:find(":")
+		local firstNum = tonumber(data:sub(0,first-1))
+		local last = data:find(":",first+1)
+		local lastNum = tonumber(data:sub(first+1,last-1))
+		if #data == last then
+			--client requested data
+			if chunks[firstNum] == nil or chunks[firstNum][lastNum] == nil then
+				v:send("#\n")
+			else
+				v:send(chunks[firstNum][lastNum].."\n")
+			end
 		else
-			client:send(chunks[firstNum][lastNum].."\n")
+			--client wants to update us, I guess
+			if chunks[firstNum] == nil then chunks[firstNum] = {} end
+			chunks[firstNum][lastNum] = data:sub(last+1,#data)
 		end
-	else
-		--client wants to update us, I guess
-		if chunks[firstNum] == nil then chunks[firstNum] = {} end
-		chunks[firstNum][lastNum] = data:sub(last+1,#data)
+		::continue::
 	end
-
-end
-
-function Serialize()
-	local file = io.open("map.cave","w")
-	
-	local currentChar = 0
-	for x,q in pairs(chunks) do
-		
-		for y,w in pairs(q) do
-			
-		end
-	end
-	file:write(data)
-
-	file:close()
 end
 
 print "done"
