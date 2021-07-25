@@ -1,4 +1,4 @@
-function send(...)
+function send(client,...)
 	local parts = {...}
 	local str = ""
 	for k,v in pairs(parts) do
@@ -8,7 +8,7 @@ function send(...)
 end
 
 --takes message like (messageType:x:y:data) and returns messageType,x,y,data. Data can be nil
-function parseMessage(message)
+function ParseMessage(message)
 	local first = 0
 	local firstStop = message:find(":")
 	if firstStop == nil then print "this message didn't have any ':' in it"; return message end
@@ -29,4 +29,3 @@ function parseMessage(message)
 	--return firstNum,lastNum,message:sub(last+1,#message)
 	--end
 end
-print(parseMessage "1:hello:2:datadatadata")
