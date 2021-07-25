@@ -24,16 +24,23 @@ end
 function circleDist(pointPos,circlePos,radius)
 	return distance(pointPos,circlePos)-radius
 end
-
-function applyShapes(circleX,circleY,chunkX,chunkY,chunk,chunkSize,half,distFunc,selectedMaterial)
+function shapeBounding(circleX,circleY,chunkX,chunkY,chunkSize,half,func)
 	for pixX=math.max(1,(circleX-(chunkX-1)*chunkSize)-half),math.min(chunkSize,circleX-(chunkX-1)*chunkSize+half) do
 		for pixY=math.max(1,circleY-(chunkY-1)*chunkSize-half),math.min(chunkSize,circleY-(chunkY-1)*chunkSize+half) do
-			--iterate throught the pixels in the image
-			local dist = distFunc(vec2(pixX,pixY)+vec2((chunkX-1)*chunkSize,(chunkY-1)*chunkSize),vec2(circleX,circleY),half)
-			if dist <= 0 then
-				--this pixel is in the circle
-				chunk:setPixel(pixX-1,pixY-1,selectedMaterial/255,0,0)--the Green and Blue components are thrown out because this is a r8 image
-			end
+			func(pixX,pixY)
 		end
 	end
+end
+
+function applyShapes(circleX,circleY,chunkX,chunkY,chunk,chunkSize,half,distFunc,selectedMaterial)
+	shapeBounding(circleX,circleY,chunkX,chunkY,chunkSize,half,function(pixX,pixY)
+		--iterate throught the pixels in the image
+		local dist = distFunc(vec2(pixX,pixY)+vec2((chunkX-1)*chunkSize,(chunkY-1)*chunkSize),vec2(circleX,circleY),half)
+		if dist <= 0 and dist >= -.5 then
+			--this pixel is in the circle
+			chunk:setPixel(pixX-1,pixY-1,selectedMaterial/255,0,0)--the Green and Blue components are thrown out because this is a r8 image
+		--elseif dist < -1 then
+			--chunk:setPixel(pixX-1,pixY-1,1/255,0,0)
+		end
+	end)
 end
