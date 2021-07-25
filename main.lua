@@ -1,5 +1,6 @@
 local nuklear = require "nuklear"
-love=love
+require "server/shapes"
+require "server/networking"
 local lg = love.graphics
 local lw = love.window
 local lp = love.physics
@@ -10,10 +11,10 @@ lg.setDefaultFilter("nearest","nearest")
 local chunkSize=100
 chunks = {}--2d array of textures
 local chunkImages = {}
-local loadX,loadY = 5,4 --how many chunks to load from the loadOrgy
+local loadX,loadY = 5,4 --how many chunks to load from the loadOrigin
 local chunkCanvas = lg.newCanvas(chunkSize*loadX,chunkSize*loadY)
 local chunkCanvasPos= {0,0}
-local loadOrgy = {0,0}--Origin -> Orgy don't @ me
+local loadOrigin = {0,0}
 local chunkEdges = {}--unused (will use for physics [I think])
 local chunkShader = lg.newShader "chunkShader.glsl"--program on the GPU that describes how to render the chunks
 
@@ -53,7 +54,7 @@ end
 
 --networking stuff
 local socket = require "socket"
-local client = assert(socket.connect("10.149.237.125",20))
+local client = assert(socket.connect("192.168.1.114",20))
 print("connected")
 
 --generate the chunks
@@ -62,13 +63,17 @@ blankCanvas:renderTo(function()
 	lg.clear(3/255,0,0)
 end)
 for x=1,loadX do
+	for y=1,loadY do
+		send(client,cmds.clientLoadRequest,x,y)
+	end
+end
+for x=1,loadX do
 	chunks[x] = {}
 	chunkImages[x] = {}
 	for y=1,loadY do
 		--create new imagedata
-		chunks[x][y] = blankCanvas:newImageData()
+		chunks[x][y] = love.image.newImageData(chunkSize,chunkSize,"r8",client:receive())
 		chunkImages[x][y] = lg.newImage(chunks[x][y])
-		client:send(x..":"..y..":"..chunks[x][y]:getString().."\n")
 		lg.setCanvas(chunkCanvas)
 		lg.setShader(chunkShader)
 		chunkShader:send("gold",materials[2].material)
@@ -82,13 +87,13 @@ end
 
 --Convolution city Woot Woot!
 function loadChunks(dx,dy)
-	local trikl = {loadOrgy[1]+dx,loadOrgy[2]+dy}--sets the x, then on the second pass sets the y
+	local trikl = {loadOrigin[1]+dx,loadOrigin[2]+dy}--sets the x, then on the second pass sets the y
 	local loads = {loadX,loadY}
 	local cumDiff = 0--just used to see if anything moved tiles
 	for i=1,2 do
-		local old = Snap(loadOrgy)
-		loadOrgy[i] = trikl[i]
-		local new = Snap(loadOrgy)
+		local old = Snap(loadOrigin)
+		loadOrigin[i] = trikl[i]
+		local new = Snap(loadOrigin)
 		local oldBasis=old[i]
 		local oldCompliment = old[((i)%2)+1]
 		local newBasis=new[i]
@@ -102,7 +107,7 @@ function loadChunks(dx,dy)
 				for y=oldCompliment,oldCompliment+loadCompliment-1  do
 					local correctedY = i==1 and y or x--the upper for loop is changing x with y, so we need to index in the same way
 					local correctedX = i==1 and x or y
-					client:send(correctedX..":"..correctedY..":"..chunks[correctedX][correctedY]:getString().."\n")
+					--client:send(correctedX..":"..correctedY..":"..chunks[correctedX][correctedY]:getString().."\n")
 					chunks[correctedX][correctedY]:release()
 					chunks[correctedX][correctedY] = nil
 					chunkImages[correctedX][correctedY]:release()
@@ -115,24 +120,18 @@ function loadChunks(dx,dy)
 					local correctedX = i==1 and x or y
 					local correctedY = i==1 and y or x
 					if chunks[correctedX] == nil then chunks[correctedX] = {};chunkImages[correctedX] = {} end
-					client:send(correctedX..":"..correctedY..":".."\n")
+					--client:send(correctedX..":"..correctedY..":".."\n")
+					send(client,cmds.clientLoadRequest,correctedX,correctedY)
 					local data = client:receive()
-					if data == "#" then
-						--we create it
-						chunks[correctedX][correctedY] = blankCanvas:newImageData()
-						chunkImages[correctedX][correctedY] = lg.newImage(chunks[correctedX][correctedY])
-					else
-						--we read it
-						chunks[correctedX][correctedY] = love.image.newImageData(chunkSize,chunkSize,"r8",data:sub(1,10000))
-						chunkImages[correctedX][correctedY] = lg.newImage(chunks[correctedX][correctedY])
-					end
+					chunks[correctedX][correctedY] = love.image.newImageData(chunkSize,chunkSize,"r8",data:sub(1,10000))
+					chunkImages[correctedX][correctedY] = lg.newImage(chunks[correctedX][correctedY])
 				end
 			end
 		end
 	end
 	--update the chunkCanvas (if needed!)
 	if cumDiff ~= 0 then
-		local new = Snap(loadOrgy)
+		local new = Snap(loadOrigin)
 		chunkCanvasPos = {(new[1]-1)*chunkSize,(new[2]-1)*chunkSize}
 		lg.setCanvas(chunkCanvas)
 		lg.setShader(chunkShader)
@@ -146,17 +145,6 @@ function loadChunks(dx,dy)
 		lg.setShader()
 		lg.setCanvas()
 	end
-end
-
-local function vec2(x,y)
-
-	return setmetatable({x=x,y=y},{__add=function(lh,rh) return vec2(lh.x+rh.x,lh.y+rh.y) end})
-end
-local function distance(pos1,pos2)
-	return math.sqrt(((pos1.x-pos2.x)^2)+(pos1.y-pos2.y)^2)
-end
-local function circleDist(pointPos,circlePos,radius)
-	return distance(pointPos,circlePos)-radius
 end
 
 
@@ -184,21 +172,11 @@ function love.mousemoved(x,y,dx,dy,istouch)
 		x,y = math.floor(x),math.floor(y)
 		--iterate through chunks
 		--translates screen space
+		local radius = brushSize
+		send(client,cmds.circle,x,y,radius,selectedMaterial)
 		for k,v in pairs(chunks) do
 			for q,w in pairs(v) do
-				--w is the 'image'
-				local radius = brushSize
-				--might be slow
-				for pixX=math.max(1,(x-(k-1)*chunkSize)-radius),math.min(chunkSize,x-(k-1)*chunkSize+radius) do
-					for pixY=math.max(1,y-(q-1)*chunkSize-radius),math.min(chunkSize,y-(q-1)*chunkSize+radius) do
-						--iterate throught the pixels in the image
-						local dist = circleDist(vec2(pixX,pixY)+vec2((k-1)*chunkSize,(q-1)*chunkSize),vec2(x,y),radius)
-						if dist <= 0 then
-							--this pixel is in the circle
-							w:setPixel(pixX-1,pixY-1,selectedMaterial/255,0,0)--the Green and Blue components are thrown out because this is a r8 image
-						end
-					end
-				end
+				applyShapes(x,y,k,q,w,chunkSize,radius,circleDist,selectedMaterial)
 				chunkImages[k][q]:release()
 				chunkImages[k][q] = lg.newImage(w)
 				lg.draw(chunkImages[k][q],(k-1)*chunkSize-chunkCanvasPos[1],(q-1)*chunkSize-chunkCanvasPos[2])
@@ -224,6 +202,29 @@ function love.wheelmoved(x,y)
 end
 
 function love.update(dt)
+	--try to get stuff from server
+	client:settimeout(0)
+	local data,err = client:receive()
+	client:settimeout()
+	if not err then
+		lg.setCanvas(chunkCanvas)
+		lg.setShader(chunkShader)
+		local parts = {ParseMessage(data)}	
+		for k,v in pairs(parts) do parts[k] = tonumber(v) end
+		for x,q in pairs(chunks) do
+			for y,w in pairs(q) do
+				if parts[1] == cmds.circle then
+					applyShapes(parts[2],parts[3],x,y,w,chunkSize,parts[4],circleDist,parts[5])
+				end
+				chunkImages[x][y]:release()
+				chunkImages[x][y] = lg.newImage(w)
+				lg.draw(chunkImages[x][y],(x-1)*chunkSize-chunkCanvasPos[1],(y-1)*chunkSize-chunkCanvasPos[2])
+			end
+		end
+		lg.setCanvas()
+		lg.setShader()
+	end
+
 	ui:frameBegin()
 	if ui:windowBegin('tools', 550, 100, 220, 200,
 			'border', 'title', 'movable','scalable') then
@@ -255,7 +256,7 @@ function love.update(dt)
 	ui:windowEnd()
 	ui:frameEnd()
 end
-local old = {loadOrgy[1],loadOrgy[2]}
+local old = {loadOrigin[1],loadOrigin[2]}
 function love.draw()
 	lg.clear(.1,.1,.1)
 	lg.setLineWidth(6)
@@ -280,9 +281,9 @@ function love.draw()
 	lg.points(0,0)
 	lg.setColor(1,1,1)
 
-	--draw the loadOrgy box
+	--draw the loadOrigin box
 	lg.setColor(1,0,0)
-	lg.rectangle("line",loadOrgy[1],loadOrgy[2],loadX*100,loadY*100)
+	lg.rectangle("line",loadOrigin[1],loadOrigin[2],loadX*100,loadY*100)
 	lg.setColor(1,1,1)
 
 	ui:draw()
