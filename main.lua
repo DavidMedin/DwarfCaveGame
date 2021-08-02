@@ -66,24 +66,20 @@ local blankCanvas = lg.newCanvas(chunkSize,chunkSize,{format="r8"})
 blankCanvas:renderTo(function()
 	lg.clear(3/255,0,0)
 end)
-for x=1,loadX do
+local loadCoro = coroutine.create(function() for x=1,loadX do
 	for y=1,loadY do
 		send(client,cmds.clientLoadRequest,x,y)
+		coroutine.yield()
 	end
-end
+end end)
+coroutine.resume(loadCoro)
 for x=1,loadX do
 	chunks[x] = {}
 	chunkImages[x] = {}
 	for y=1,loadY do
 		--create new imagedata
-		client:settimeout(5)
-		local data,err = client:receive(chunkSize^2)
-		if err then
-			print(err,data)
-			love.event.quit()
-			love.update()
-		end
-		client:receive(1)
+		coroutine.resume(loadCoro)
+		local data,err = client:receive("*l")
 		chunks[x][y] = love.image.newImageData(chunkSize,chunkSize,"r8",data)
 		chunkImages[x][y] = lg.newImage(chunks[x][y])
 		lg.setCanvas(chunkCanvas)
@@ -133,8 +129,7 @@ function loadChunks(dx,dy)
 					if chunks[correctedX] == nil then chunks[correctedX] = {};chunkImages[correctedX] = {} end
 					--client:send(correctedX..":"..correctedY..":".."\n")
 					send(client,cmds.clientLoadRequest,correctedX,correctedY)
-					local data = client:receive(chunkSize^2)
-					client:receive(1)
+					local data = client:receive("*l")
 					chunks[correctedX][correctedY] = love.image.newImageData(chunkSize,chunkSize,"r8",data)
 					chunkImages[correctedX][correctedY] = lg.newImage(chunks[correctedX][correctedY])
 				end

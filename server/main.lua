@@ -24,11 +24,9 @@ while true do
 	for k,v in pairs(connections) do
 		local data,err = v:receive("*l")
 		if err then goto continue end
-		print(data)
 		local parts = {ParseMessage(data)}
 		local messageType = tonumber(parts[1])
 		if messageType == cmds.circle then
-			print "circling"
 			for q,w in pairs(parts) do parts[q] = tonumber(w) end
 			for x,q in pairs(chunks) do
 				for y,r in pairs(q) do
@@ -42,7 +40,6 @@ while true do
 				end
 			end
 		elseif messageType == cmds.clientLoadRequest then
-			print "client load request"
 			--the client wants a chunk
 			for q,w in pairs(parts) do parts[q] = tonumber(w) end
 			if chunks[parts[2]] == nil then chunks[parts[2]] = {} end
@@ -51,9 +48,7 @@ while true do
 				chunks[parts[2]][parts[3]] = love.image.newImageData(chunkSize,chunkSize,"r8")
 				chunks[parts[2]][parts[3]]:mapPixel(function(x,y,r,g,b,a) return 3/255,3/255,3/255,1 end)
 			end
-			local stuff = chunks[parts[2]][parts[3]]:getString()
-			print(#stuff)
-			v:send(stuff.."\n")
+			v:send(chunks[parts[2]][parts[3]]:getString().."\n")
 		end
 		--if #data == last then
 		--	--client requested data
