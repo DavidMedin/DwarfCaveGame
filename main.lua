@@ -130,7 +130,9 @@ function loadChunks(dx,dy)
 					--client:send(correctedX..":"..correctedY..":".."\n")
 					send(client,cmds.clientLoadRequest,correctedX,correctedY)
 					local data = client:receive("*l")
-					chunks[correctedX][correctedY] = love.image.newImageData(chunkSize,chunkSize,"r8",data)
+					if 0 == pcall(function() chunks[correctedX][correctedY] = love.image.newImageData(chunkSize,chunkSize,"r8",data) end) then
+						print("oh no, data is weird!, it is #data bytes long")
+					end
 					chunkImages[correctedX][correctedY] = lg.newImage(chunks[correctedX][correctedY])
 				end
 			end
