@@ -64,6 +64,7 @@ while true do
 		--end
 		::continue::
 	end
+	--print "done with clients"
 end
 
 print "done"

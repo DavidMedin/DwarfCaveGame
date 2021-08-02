@@ -1,3 +1,6 @@
+if os.getenv("LOCAL_LUA_DEBUGGER_VSCODE") == "1" then
+  require("lldebugger").start()
+end
 local nuklear = require "nuklear"
 require "server/shapes"
 require "server/networking"
@@ -54,7 +57,8 @@ end
 
 --networking stuff
 local socket = require "socket"
-local client = assert(socket.connect("192.168.1.9",20))
+--local client = assert(socket.connect("192.168.1.9",20))
+local client = assert(socket.connect("140.190.30.161",20))
 print("connected")
 
 --generate the chunks
@@ -62,17 +66,21 @@ local blankCanvas = lg.newCanvas(chunkSize,chunkSize,{format="r8"})
 blankCanvas:renderTo(function()
 	lg.clear(3/255,0,0)
 end)
-for x=1,loadX do
+local loadCoro = coroutine.create(function() for x=1,loadX do
 	for y=1,loadY do
 		send(client,cmds.clientLoadRequest,x,y)
+		coroutine.yield()
 	end
-end
+end end)
+coroutine.resume(loadCoro)
 for x=1,loadX do
 	chunks[x] = {}
 	chunkImages[x] = {}
 	for y=1,loadY do
 		--create new imagedata
-		chunks[x][y] = love.image.newImageData(chunkSize,chunkSize,"r8",client:receive())
+		coroutine.resume(loadCoro)
+		local data,err = client:receive("*l")
+		chunks[x][y] = love.image.newImageData(chunkSize,chunkSize,"r8",data)
 		chunkImages[x][y] = lg.newImage(chunks[x][y])
 		lg.setCanvas(chunkCanvas)
 		lg.setShader(chunkShader)
@@ -81,9 +89,8 @@ for x=1,loadX do
 		lg.draw(chunkImages[x][y],(x-1)*chunkSize,(y-1)*chunkSize)
 		lg.setShader()
 		lg.setCanvas()
-	end
+	end --im doin sum
 end
-
 
 --Convolution city Woot Woot!
 function loadChunks(dx,dy)
@@ -122,8 +129,10 @@ function loadChunks(dx,dy)
 					if chunks[correctedX] == nil then chunks[correctedX] = {};chunkImages[correctedX] = {} end
 					--client:send(correctedX..":"..correctedY..":".."\n")
 					send(client,cmds.clientLoadRequest,correctedX,correctedY)
-					local data = client:receive()
-					chunks[correctedX][correctedY] = love.image.newImageData(chunkSize,chunkSize,"r8",data:sub(1,10000))
+					local data = client:receive("*l")
+					if 0 == pcall(function() chunks[correctedX][correctedY] = love.image.newImageData(chunkSize,chunkSize,"r8",data) end) then
+						print("oh no, data is weird!, it is #data bytes long")
+					end
 					chunkImages[correctedX][correctedY] = lg.newImage(chunks[correctedX][correctedY])
 				end
 			end
