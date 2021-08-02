@@ -54,7 +54,7 @@ end
 
 --networking stuff
 local socket = require "socket"
-local client = assert(socket.connect("192.168.1.114",20))
+local client = assert(socket.connect("192.168.1.9",20))
 print("connected")
 
 --generate the chunks

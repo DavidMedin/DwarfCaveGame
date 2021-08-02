@@ -32,15 +32,13 @@ function shapeBounding(circleX,circleY,chunkX,chunkY,chunkSize,half,func)
 	end
 end
 
-function applyShapes(circleX,circleY,chunkX,chunkY,chunk,chunkSize,half,distFunc,selectedMaterial)
+function applyShapes(circleX,circleY,chunkX,chunkY,chunk,chunkSize,half,distFunc,selectedMaterial,edgeList)
 	shapeBounding(circleX,circleY,chunkX,chunkY,chunkSize,half,function(pixX,pixY)
 		--iterate throught the pixels in the image
 		local dist = distFunc(vec2(pixX,pixY)+vec2((chunkX-1)*chunkSize,(chunkY-1)*chunkSize),vec2(circleX,circleY),half)
-		if dist <= 0 and dist >= -.5 then
+		if dist <= 0 then
 			--this pixel is in the circle
 			chunk:setPixel(pixX-1,pixY-1,selectedMaterial/255,0,0)--the Green and Blue components are thrown out because this is a r8 image
-		--elseif dist < -1 then
-			--chunk:setPixel(pixX-1,pixY-1,1/255,0,0)
 		end
 	end)
 end
