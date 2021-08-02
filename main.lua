@@ -1,3 +1,6 @@
+if os.getenv("LOCAL_LUA_DEBUGGER_VSCODE") == "1" then
+  require("lldebugger").start()
+end
 local nuklear = require "nuklear"
 require "server/shapes"
 require "server/networking"
@@ -73,7 +76,15 @@ for x=1,loadX do
 	chunkImages[x] = {}
 	for y=1,loadY do
 		--create new imagedata
-		chunks[x][y] = love.image.newImageData(chunkSize,chunkSize,"r8",client:receive())
+		client:settimeout(5)
+		local data,err = client:receive(chunkSize^2)
+		if err then
+			print(err,data)
+			love.event.quit()
+			love.update()
+		end
+		print(data)
+		chunks[x][y] = love.image.newImageData(chunkSize,chunkSize,"r8",data)
 		chunkImages[x][y] = lg.newImage(chunks[x][y])
 		lg.setCanvas(chunkCanvas)
 		lg.setShader(chunkShader)
@@ -82,9 +93,8 @@ for x=1,loadX do
 		lg.draw(chunkImages[x][y],(x-1)*chunkSize,(y-1)*chunkSize)
 		lg.setShader()
 		lg.setCanvas()
-	end
+	end --im doin sum
 end
-
 
 --Convolution city Woot Woot!
 function loadChunks(dx,dy)
@@ -123,8 +133,8 @@ function loadChunks(dx,dy)
 					if chunks[correctedX] == nil then chunks[correctedX] = {};chunkImages[correctedX] = {} end
 					--client:send(correctedX..":"..correctedY..":".."\n")
 					send(client,cmds.clientLoadRequest,correctedX,correctedY)
-					local data = client:receive()
-					chunks[correctedX][correctedY] = love.image.newImageData(chunkSize,chunkSize,"r8",data:sub(1,10000))
+					local data = client:receive(chunkSize^2)
+					chunks[correctedX][correctedY] = love.image.newImageData(chunkSize,chunkSize,"r8",data)
 					chunkImages[correctedX][correctedY] = lg.newImage(chunks[correctedX][correctedY])
 				end
 			end
