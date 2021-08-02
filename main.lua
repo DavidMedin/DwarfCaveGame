@@ -83,7 +83,7 @@ for x=1,loadX do
 			love.event.quit()
 			love.update()
 		end
-		print(data)
+		client:receive(1)
 		chunks[x][y] = love.image.newImageData(chunkSize,chunkSize,"r8",data)
 		chunkImages[x][y] = lg.newImage(chunks[x][y])
 		lg.setCanvas(chunkCanvas)
@@ -134,6 +134,7 @@ function loadChunks(dx,dy)
 					--client:send(correctedX..":"..correctedY..":".."\n")
 					send(client,cmds.clientLoadRequest,correctedX,correctedY)
 					local data = client:receive(chunkSize^2)
+					client:receive(1)
 					chunks[correctedX][correctedY] = love.image.newImageData(chunkSize,chunkSize,"r8",data)
 					chunkImages[correctedX][correctedY] = lg.newImage(chunks[correctedX][correctedY])
 				end
