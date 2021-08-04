@@ -50,18 +50,6 @@ while true do
 			end
 			v:send(chunks[parts[2]][parts[3]]:getString().."\n")
 		end
-		--if #data == last then
-		--	--client requested data
-		--	if chunks[firstNum] == nil or chunks[firstNum][lastNum] == nil then
-		--		v:send("#\n")
-		--	else
-		--		v:send(chunks[firstNum][lastNum].."\n")
-		--	end
-		--else
-		--	--client wants to update us, I guess
-		--	if chunks[firstNum] == nil then chunks[firstNum] = {} end
-		--	chunks[firstNum][lastNum] = data:sub(last+1,#data)
-		--end
 		::continue::
 	end
 	--print "done with clients"
