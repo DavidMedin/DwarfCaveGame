@@ -157,6 +157,12 @@ function loadChunks(dx,dy)
 					end
 					chunkImages[correctedX][correctedY] = lg.newImage(chunks[correctedX][correctedY])
 					generateArray(chunkEdges,correctedX,correctedY)
+
+					for pixX=0,chunkSize-1 do
+						for pixY=0,chunkSize-1 do
+							Edgy(pixX,pixY,correctedX,correctedY)
+						end
+					end
 				end
 			end
 		end
@@ -215,7 +221,8 @@ function love.mousemoved(x,y,dx,dy,istouch)
 		for k,v in pairs(chunks) do
 			for q,w in pairs(v) do
 				shapeBounding(x,y,k,q,chunkSize,radius,function(pixX,pixY)
-					debugFunc(Edgy,pixX,pixY,k,q)
+					--debugFunc(Edgy,pixX,pixY,k,q)
+					Edgy(pixX,pixY,k,q)
 				end)
 			end
 		end
