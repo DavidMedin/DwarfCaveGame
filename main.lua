@@ -13,13 +13,14 @@ local lg = love.graphics
 local lw = love.window
 local lp = love.physics
 local lf = love.font
+local lm = love.mouse
 
 --chunk stuff
 lg.setDefaultFilter("nearest","nearest")
 chunkSize=100
 chunks = {}--2d array of image data
 local chunkImages = {}
-loadX,loadY = 5,4 --how many chunks to load from the loadOrigin
+--loadX,loadY = 5,4 --how many chunks to load from the loadOrigin
 local chunkCanvas = lg.newCanvas(chunkSize*loadX,chunkSize*loadY)
 local chunkCanvasPos= {0,0}
 local loadOrigin = vec2{0,0}
@@ -178,7 +179,10 @@ function loadChunks(dx,dy)
 	end
 end
 
-
+function ScreenToPixel(vec)
+		local x,y = cameraTransform:inverseTransformPoint(vec.x,vec.y)
+		x,y = math.floor(x),math.floor(y)
+end
 
 function love.mousemoved(x,y,dx,dy,istouch)
 	if not ui:mousemoved(x, y, dx, dy, istouch) then
@@ -254,6 +258,13 @@ function love.update(dt)
 				lg.draw(chunkImages[x][y],(x-1)*chunkSize-chunkCanvasPos[1],(y-1)*chunkSize-chunkCanvasPos[2])
 			end
 		end
+		for x,q in pairs(chunks) do
+			for y,w in pairs(q) do
+				shapeBounding(x,y,k,q,chunkSize,radius,function(pixX,pixY)
+					Edgy(pixX,pixY,x,y)
+				end)
+			end
+		end
 		lg.setCanvas()
 		lg.setShader()
 	end
@@ -313,7 +324,14 @@ function love.draw()
 	--		lg.rectangle("line",(x-1)*chunkSize,(y-1)*chunkSize,chunkSize,chunkSize)
 	--	end
 	--end
-
+	lg.setPointSize(5)
+	lg.setColor(1,0,0)
+	for x=0, playerSize.x-1 do
+		for y=0, playerSize.y-1 do
+			local points = playerLocation+vec2(x,y)
+			lg.points(points.x,points.y)
+		end
+	end
 
 	lg.setPointSize(2)
 	lg.setColor(0,0,1)
@@ -340,7 +358,8 @@ function love.draw()
 	ui:draw()
 	
 	lg.origin()
-	lg.print("FPS: "..love.timer.getFPS(),0,0)	
+	lg.print("FPS: "..love.timer.getFPS(),0,0)
+	lg.print(playerLocation.x.." "..playerLocation.y,0,20)
 
 end
 

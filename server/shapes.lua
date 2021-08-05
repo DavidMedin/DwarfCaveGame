@@ -1,4 +1,5 @@
 --takes a table of strings and returns a table where those strings are keys and have incrementing values. So an Enum.
+loadX,loadY = 5,4
 function Enum(tabl)
 	local newTab = {}
 	local incre = 1

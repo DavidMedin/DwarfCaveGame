@@ -7,7 +7,20 @@ local socket = require "socket"
 local server = assert(socket.bind("*",20))
 local chunkSize = 100
 --test = love.image.newImageData(100,100,"r8")
-
+--generating hole
+for x=1,loadX do
+	chunks[x] = {}
+	for y=1,loadY do
+		chunks[x][y] = love.image.newImageData(chunkSize,chunkSize,"r8")
+		chunks[x][y]:mapPixel(function(x,y,r,g,b,a) return 3/255,3/255,3/255,1 end)
+	end
+end
+for k,v in pairs(chunks) do
+	for q,w in pairs(v) do
+		applyShapes(math.floor(loadX*chunkSize/2),math.floor(loadY*chunkSize/2),k,q,w,chunkSize,50,circleDist,1)
+	end
+end
+print "done generating"
 server:settimeout(0)
 print "started up"
 while true do
