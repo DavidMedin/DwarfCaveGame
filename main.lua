@@ -260,7 +260,7 @@ function love.update(dt)
 		end
 		for x,q in pairs(chunks) do
 			for y,w in pairs(q) do
-				shapeBounding(x,y,k,q,chunkSize,radius,function(pixX,pixY)
+				shapeBounding(parts[2],parts[3],x,y,chunkSize,parts[4],function(pixX,pixY)
 					Edgy(pixX,pixY,x,y)
 				end)
 			end
