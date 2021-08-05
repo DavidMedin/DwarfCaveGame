@@ -40,6 +40,7 @@ while true do
 				end
 			end
 		elseif messageType == cmds.clientLoadRequest then
+			print("requested chunk",parts[2],parts[3])
 			--the client wants a chunk
 			for q,w in pairs(parts) do parts[q] = tonumber(w) end
 			if chunks[parts[2]] == nil then chunks[parts[2]] = {} end

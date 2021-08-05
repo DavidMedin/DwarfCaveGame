@@ -6,9 +6,6 @@ function debugFunc(func,...)
 		func(unpack(args))
 	end
 end
-if os.getenv("LOCAL_LUA_DEBUGGER_VSCODE") == "1" then
-  require("lldebugger").start()
-end
 local nuklear = require "nuklear"
 require "server/networking"
 require "server/shapes"
@@ -31,7 +28,7 @@ local chunkShader = lg.newShader "chunkShader.glsl"--program on the GPU that des
 
 function Snap(vec)
 	--plus one because the chunk at (1,1) would be (0,0) after chunk, where it should still be (1,1)
-	return vec2{math.floor(vec.x/chunkSize)+1,math.floor(vec.y/chunkSize)+1}
+	return vec2{math.floor(vec[1]/chunkSize)+1,math.floor(vec[2]/chunkSize)+1}
 end
 
 --camera stuff
@@ -106,12 +103,15 @@ for k,v in pairs(chunks) do
 	for q,w in pairs(v) do
 		for pixX=0,chunkSize-1 do
 			for pixY=0,chunkSize-1 do
-				debugFunc(Edgy,pixX,pixY,k,q)
+				--debugFunc(Edgy,pixX,pixY,k,q)
+				Edgy(pixX,pixY,k,q)
 			end
 		end
 	end
 end
-
+if os.getenv("LOCAL_LUA_DEBUGGER_VSCODE") == "1" then
+  require("lldebugger").start()
+end
 --Convolution city Woot Woot!
 function loadChunks(dx,dy)
 	local trikl = {loadOrigin[1]+dx,loadOrigin[2]+dy}--sets the x, then on the second pass sets the y
@@ -139,6 +139,7 @@ function loadChunks(dx,dy)
 					chunks[correctedX][correctedY] = nil
 					chunkImages[correctedX][correctedY]:release()
 					chunkImages[correctedX][correctedY] = nil
+					chunkEdges[correctedX][correctedY] = nil
 				end
 			end
 			--add chunks
@@ -154,6 +155,7 @@ function loadChunks(dx,dy)
 						print("oh no, data is weird!, it is #data bytes long")
 					end
 					chunkImages[correctedX][correctedY] = lg.newImage(chunks[correctedX][correctedY])
+					generateArray(chunkEdges,correctedX,correctedY)
 				end
 			end
 		end

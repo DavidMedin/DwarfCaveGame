@@ -1,8 +1,18 @@
+function generateArray(tabl,...)
+	--this function will generate each part with empty tables if it can
+	local indicies = {...}
+	local nextThing = tabl
+	for k,v in pairs(indicies) do
+		if nextThing[v] == nil then
+			nextThing[v] = {}
+		end
+		nextThing = nextThing[v]
+	end
+end
 function Edgy(pixX,pixY,chunkX,chunkY)--this time, the pix' are starting at 0, I think
 	--this function is called for every pixel in the effective area of a distance function (like the bounding box of a circle)
-	if chunkEdges[chunkX][chunkY][pixX] ~= nil then
-		if chunkEdges[chunkX][chunkY][pixX][pixY] ~= nil then chunkEdges[chunkX][chunkY][pixX][pixY] =nil end
-	end
+	generateArray(chunkEdges,chunkX,chunkY,pixX)
+	if chunkEdges[chunkX][chunkY][pixX][pixY] ~= nil then chunkEdges[chunkX][chunkY][pixX][pixY] =nil end
 	if chunks[chunkX][chunkY]:getPixel(pixX,pixY) ~= 1/255 then--we don't care if the pixel in question is air
 		local dirs = {vec2{1,0},vec2{1,1},vec2{0,1},vec2{-1,1},vec2{-1,0},vec2{-1,-1},vec2{0,-1},vec2{1,-1}}--will do this better with math :)
 		for k,v in pairs(dirs) do
