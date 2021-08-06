@@ -276,6 +276,8 @@ function love.update(dt)
 		lg.setShader()
 	end
 
+	--physicsUpdate(dt)
+
 	ui:frameBegin()
 	if ui:windowBegin('tools', 550, 100, 220, 200,
 			'border', 'title', 'movable','scalable') then

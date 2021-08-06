@@ -56,17 +56,40 @@ function Edgy(pixX,pixY,chunkX,chunkY)--this time, the pix' are starting at 0, I
 	end
 end
 
+function isColliding(localPos,playerChunk)
+	for x=localPos.x,localPos.x+playerSize.x-1 do
+		for y=localPos.y,localPos.y+playerSize.y-1 do
+			if chunks[playerChunk.x][playerChunk.y]:getPixel(x,y) ~= 1/255 then
+				--might have a collider
+				if chunkEdges[playerChunk.x][playerChunk.y][x][y] == 1 then
+					--we collide
+					--idk just go up till not colliding
+					return true
+				end
+			end
+		end
+	end
+	return false
+end
 
 function physicsUpdate(dt)
 	playerVelocity = playerVelocity+vec2(0,9.8)*dt
-	local tmp = playerLocation/chunkSize
-	local playerChunk = vec2(math.floor(tmp.x),math.floor(tmp.y))+1
-	local localPos = playerVelocity - playerChunk*chunkSize--the position in the chunk
-	for x,_ in pairs(chunks) do
-		for y,__ in pairs(_) do
-			shapeBounding(localPos.x,localPos.y,playerChunk.x,playerChunk.y,chunkSize,10,function(pixX,pixY)
-				
-			end)
-		end
-	end
+	--apply velocity
+	playerPosition = playerLocation+playerVelocity
+	--local tmp = playerLocation/chunkSize
+	--local playerChunk = vec2(math.floor(tmp.x),math.floor(tmp.y))+1
+	--local localPos = playerVelocity - playerChunk*chunkSize--the position in the chunk
+	repeat
+		local tmp = playerLocation/chunkSize
+		local playerChunk = vec2(math.floor(tmp.x),math.floor(tmp.y))+1
+		local localPos = playerVelocity - playerChunk*chunkSize--the position in the chunk
+	until (isColliding(localPos,playerChunk) == true and function() playerPosition = playerPosition + vec2(0,-1); return true end)
+	--zero based, so minus one
+	--for x,_ in pairs(chunks) do
+	--	for y,__ in pairs(_) do
+	--		shapeBounding(localPos.x,localPos.y,playerChunk.x,playerChunk.y,chunkSize,10,function(pixX,pixY)
+	--			
+	--		end)
+	--	end
+	--end
 end
